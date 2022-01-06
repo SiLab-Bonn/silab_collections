@@ -1,0 +1,6 @@
+numpy
+scipy
+basil_daq
+pytest
+matplotlib
+tables
