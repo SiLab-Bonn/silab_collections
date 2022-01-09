@@ -1,6 +1,9 @@
+"""
+Implementation of different fitting-related routines
+"""
+
 import numpy as np
 import scipy.odr as odr
-
 from scipy.optimize import curve_fit
 
 
