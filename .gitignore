@@ -152,4 +152,5 @@ cython_debug/
 #.idea/
 
 # Ignore example folder files
-!examples/*.py
+examples/*.csv
+examples/*.h5
