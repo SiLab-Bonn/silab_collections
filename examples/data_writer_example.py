@@ -4,7 +4,7 @@ The examples in this file use the DataWriter class to write data to different fi
 
 import numpy as np
 import tables as tb
-from silab_tools.utils.data_writer import DataWriter
+from silab_collections.utils.data_writer import DataWriter
 from time import asctime, time
 
 

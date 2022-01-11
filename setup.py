@@ -9,10 +9,10 @@ with open('requirements.txt') as f:
     required = f.read().splitlines()
 
 setup(
-    name='silab_tools',
+    name='silab_collections',
     version=version,
-    description='Collection of often-used routines for measurements as well as analysis and visualization',
-    url='https://github.com/SiLab-Bonn/silab_tools',
+    description='Collections of often-used routines for measurements, analysis and utilities',
+    url='https://github.com/SiLab-Bonn/silab_collections',
     license='MIT License',
     long_description='',
     author=author,

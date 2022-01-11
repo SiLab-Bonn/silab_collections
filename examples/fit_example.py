@@ -1,11 +1,12 @@
-import numpy as np
-from silab_tools.fit import fit
-import matplotlib.pyplot as plt
-
 """
 The fit examples in this script work on a simulated, Gaussian-distributed response of a detector system
 with discrete channels such as e.g. counts in a multi-channels analyzer (MCA) or a pixel detector TOT. 
 """
+
+import numpy as np
+from silab_collections.fit import fit
+import matplotlib.pyplot as plt
+
 
 # Generate normal distributed example data set
 MU = 50

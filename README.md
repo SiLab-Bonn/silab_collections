@@ -1,4 +1,4 @@
-# silab_tools
+# silab_collections
 
 This package aims to provide often-used routines for measurements, analysis and data visualization.
 
@@ -11,7 +11,7 @@ After doing so, install the dependencies via
 
 Followed by 
 
-    pip install basil_daq
+    pip install basil_daq tdqm
 
 ## Examples
 Check out the `examples` folder
