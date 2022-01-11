@@ -11,7 +11,7 @@ After doing so, install the dependencies via
 
 Followed by 
 
-    pip install basil_daq tdqm
+    pip install basil_daq tqdm
 
 ## Examples
 Check out the `examples` folder

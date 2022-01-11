@@ -4,4 +4,4 @@ basil_daq
 pytest
 matplotlib
 tables
-tdqm
+tqdm
