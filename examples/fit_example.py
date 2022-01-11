@@ -5,7 +5,6 @@ with discrete channels such as e.g. counts in a multi-channels analyzer (MCA) or
 
 import numpy as np
 from silab_collections.fit import fit
-import matplotlib.pyplot as plt
 
 
 # Generate normal distributed example data set
@@ -94,7 +93,7 @@ def fit_odr_example():
     # Make result string
     res = "Fit results of {}:\n\t".format(fit.fit_odr.__name__)
     res += "mu = ({:.3E} {} {:.3E})".format(popt[0], u'\u00B1', perr[0]) + " keV\n\t"
-    res += "sigma = ({:.3E} {} {:.3E})".format(popt[1], u'\u00B1', perr[1]) + " KeV\n\t"
+    res += "sigma = ({:.3E} {} {:.3E})".format(popt[1], u'\u00B1', perr[1]) + " keV\n\t"
     res += "amplitude = ({:.3E} {} {:.3E})".format(popt[2], u'\u00B1', perr[2]) + " counts\n\t"
     res += "red. Chi^2 = {:.3f}".format(red_chi_2) + "\n"
     
