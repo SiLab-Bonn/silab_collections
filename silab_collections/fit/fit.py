@@ -2,6 +2,7 @@
 Implementation of different fitting-related routines
 """
 
+import warnings
 import numpy as np
 import scipy.odr as odr
 from scipy.optimize import curve_fit
@@ -27,10 +28,10 @@ def red_chisquare(meas, model, meas_err, model_popt):
     float: reduced chisquare
     """
 
-    return np.sum(np.power((meas - model) / meas_err, 2.0)) / (len(meas_err) - len(model_popt) - 1.0)
+    return np.sum(np.square((meas - model) / meas_err)) / (len(meas_err) - len(model_popt) - 1.0)
 
 
-def fit_basic(fit_func, x, y, y_err, p0=None, return_pcov=False, **fit_kwargs):
+def fit_basic(fit_func, x, y, p0, y_err=None, return_pcov=False, **fit_kwargs):
     """
     Simple function that takes data as well as error and optimizes *fit_func* to
     it using non-linear least-squares fit provided by scipy.optimize.curve_fit.
@@ -53,6 +54,9 @@ def fit_basic(fit_func, x, y, y_err, p0=None, return_pcov=False, **fit_kwargs):
     -------
     tuple: popt, perr, red_chisquare or popt, perr, red_chisquare, pcov 
     """
+
+    if p0 is None:
+        warnings.warn("The *curve_fit* routine relies on proper starting parameters *p0* to ensure convergance.", Warning)
 
     # We are using curve_fit; absolute_sigma=True indicates sigma has unit
     popt, pcov = curve_fit(f=fit_func, xdata=x, ydata=y, sigma=y_err, absolute_sigma=True, p0=p0, **fit_kwargs)
