@@ -39,7 +39,7 @@ def fit_basic_example():
     y_err[y_err == 0] = np.inf
 
     # Estimator for starting parameters for the fit routine
-    p0 = [60, 2, DATA.max()]
+    p0 = [MU, SIGMA, DATA.max()]
 
     # Do the fit
     popt, perr, red_chi_2 = fit.fit_basic(fit_func=gauss,
@@ -81,7 +81,7 @@ def fit_odr_example():
     x_err = np.full(fill_value=0.07, shape=energy.shape)
 
     # Estimator for starting parameters for the fit routine
-    p0 = [80, 3, DATA.max()]
+    p0 = [1.67*MU, 1.67*SIGMA, DATA.max()]
 
     # Do the fit
     popt, perr, red_chi_2 = fit.fit_odr(fit_func=gauss,
