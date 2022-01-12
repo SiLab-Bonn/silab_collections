@@ -9,6 +9,7 @@ from silab_collections.meas.utils import get_current_reading, get_voltage_readin
 from basil.dut import Dut
 from tqdm import tqdm
 from time import time, sleep
+from collections import Iterable
 
 
 def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, bias_steps=None, n_meas=1, smu_name=None, **writer_kwargs):
@@ -57,21 +58,11 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
         msg += "Set *smu_name* or only have the SMU hardware driver in *smu_config*"
         raise ValueError(msg)
 
-    # Create voltage steps etc.
-    bias_polarity = 1 if bias_polarity > 0 else -1
-    max_bias = bias_polarity * bias_voltage
-
-    if bias_steps is None:
-        bias_volts = np.linspace(0, max_bias, int(abs(max_bias)+1))
-    else:
-        bias_volts = np.linspace(0, max_bias, int(bias_steps))
-
     # Stuff for the DataWriter
     # Prepare comments
     # Check if comments are in writer_kwargs and replace if so
     if 'comments' not in writer_kwargs:
         writer_kwargs['comments'] = [f'SMU: {smu.get_name()}',
-                                     f'Bias voltage: {max_bias} V in {(abs(max_bias) + 1) / len(bias_volts)} V steps',
                                      f'Current limit: {current_limit:.2E} A',
                                      f'Measurements per voltage step: {n_meas}']
     
@@ -87,6 +78,23 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
 
     # Make instance of data writer
     data_writer = DataWriter(outfile=outfile, **writer_kwargs)
+
+    # Create voltage steps etc.
+    if isinstance(bias_voltage, Iterable):
+        try:
+            bias_volts = [float(bv) for bv in bias_voltage]
+            writer_kwargs['comments'].append('Bias voltages: ({}) V'.format(', '.join(str(bv) for bv in bias_volts)))
+        except ValueError:
+            raise ValueError("*bias_voltage* must be iterable of voltages convertable to floats")
+    else:
+        bias_polarity = 1 if bias_polarity > 0 else -1
+        max_bias = bias_polarity * bias_voltage
+        if bias_steps is None:
+            bias_volts = np.linspace(0, max_bias, int(abs(max_bias)+1))
+        else:
+            bias_volts = np.linspace(0, max_bias, int(bias_steps))
+
+        writer_kwargs['comments'].append(f'Bias voltage: {max_bias} V in {(abs(max_bias) + 1) / len(bias_volts)} V steps')
 
     # Adjust the SMU from basil if possible
     # Ensure we are in voltage sourcing mode
