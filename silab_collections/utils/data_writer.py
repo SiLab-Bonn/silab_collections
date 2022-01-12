@@ -55,9 +55,9 @@ class DataWriter:
         self._col_names = None
 
         # Private methods for setting up the instance
+        self._check_extension()
         self._check_sanity()
         self._check_columns()
-        self._ensure_extension()
         self._prepare_comments()
 
     def _check_sanity(self):
@@ -102,9 +102,9 @@ class DataWriter:
         else:
             raise NotImplementedError(f"Output file type {self.out_type} not supported.")
 
-    def _ensure_extension(self):
+    def _check_extension(self):
         """
-        Ensure the file extension for the respective *self.out_type* is given
+        Check the file extension for the respective *self.out_type* and add it, if not given
         """
 
         if not self.out_file.lower().endswith(self._FILE_EXTENSION[self.out_type]):
