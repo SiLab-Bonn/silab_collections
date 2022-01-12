@@ -51,7 +51,10 @@ def ramp_voltage(device, target_voltage=0, delay=1, steps=None):
 
     # Check for voltage getter and setter
     if not all(hasattr(device, f'{x}_voltage') for x in ('get', 'set')):
-        raise AttributeError('device does not have voltage getter/setter methods')
+        raise AttributeError("Device does not have voltage getter/setter methods")
+
+    if hasattr(device, 'get_on') and not int(device.get_on()):
+        raise RuntimeError("Device output must be turned on to measure voltage")
 
     # Get the current voltage
     current_voltage = get_voltage_reading(device=device)
@@ -62,9 +65,10 @@ def ramp_voltage(device, target_voltage=0, delay=1, steps=None):
 
     # Create voltages to loop through
     if steps is None:
-        volts = np.linspace(current_voltage, target_voltage, abs(target_voltage-current_voltage)+1) 
+        volts = np.linspace(current_voltage, target_voltage, int(abs(target_voltage-current_voltage)+1)) 
     else:
-        volts = np.linspace(current_voltage, target_voltage, steps)
+        volts = np.linspace(current_voltage, target_voltage, int(steps))
+    
     # Make progressbar
     pbar_ramp = tqdm(volts, unit='voltage steps', desc=f'Ramping voltage to {target_voltage} V')
     
@@ -81,5 +85,5 @@ def ramp_voltage(device, target_voltage=0, delay=1, steps=None):
     # Get the current voltage
     current_voltage = get_voltage_reading(device=device)
 
-    if current_voltage != target_voltage:
+    if not np.isclose(current_voltage, target_voltage, atol=1e-2):
         raise RuntimeError(f"Ramping voltage to target of {target_voltage} V failed. ({current_voltage} V after ramping.")
