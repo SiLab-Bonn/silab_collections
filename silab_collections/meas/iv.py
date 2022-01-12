@@ -60,7 +60,11 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
     # Create voltage steps etc.
     bias_polarity = 1 if bias_polarity > 0 else -1
     max_bias = bias_polarity * bias_voltage
-    bias_volts = np.linspace(0, max_bias, abs(max_bias)+1) if bias_steps is None else np.linspace(0, max_bias, bias_steps)
+
+    if bias_steps is None:
+        bias_volts = np.linspace(0, max_bias, int(abs(max_bias)+1))
+    else:
+        bias_volts = np.linspace(0, max_bias, int(bias_steps))
 
     # Stuff for the DataWriter
     # Prepare comments
@@ -81,6 +85,9 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
     if writer_kwargs['outtype'] == DataWriter.TABLES:
         writer_kwargs['columns'] = np.dtype(list(zip(writer_kwargs['columns'], [float] * len(writer_kwargs['columns']))))
 
+    # Make instance of data writer
+    data_writer = DataWriter(outfile=outfile, **writer_kwargs)
+
     # Adjust the SMU from basil if possible
     # Ensure we are in voltage sourcing mode
     if hasattr(smu, 'source_voltage'):
@@ -90,53 +97,61 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
     if hasattr(smu, 'set_current_limit'):
         smu.set_current_limit(current_limit)
 
+    # Ensure voltage range
+    if hasattr(smu, 'set_voltage_range'):
+        smu.set_voltage_range(bias_voltage)
+
+    # Switch on SMU if possible from basil
+    if hasattr(smu, 'on'):
+        smu.on()
+
     # Ensure we start from 0 volts
-    ramp_voltage(device=smu, target_voltage=0)
-  
-    with DataWriter(outfile=outfile, **writer_kwargs) as writer:
+    ramp_voltage(device=smu, target_voltage=0, steps=bias_steps)
+    
+    try:
 
-        # Make progress bar to loop over voltage steps
-        pbar_volts = tqdm(bias_volts, unit='bias steps', desc='IV curve basic')
+        with data_writer as writer:
 
-        # Switch on SMU if possible from basil
-        if hasattr(smu, 'on'):
-            smu.on()
+            # Make progress bar to loop over voltage steps
+            pbar_volts = tqdm(bias_volts, unit='bias steps', desc='IV curve basic')
 
-        # Start looping over voltages
-        for bias in pbar_volts:
-            
-            # Set next voltage
-            smu.set_voltage(bias)
-  
-            # Read current 
-            current = get_current_reading(device=smu)
-
-            # Check if we are above the current limit
-            if current  > current_limit and current < 1e37:
-                warnings.warn(f"Current limit exceeded with {current:.2E} A. Abort.", Warning)
-                break
-            
-            # Let the voltage settle
-            sleep(_settle_delay)
-          
-            # We only take one measurement
-            if n_meas == 1:
+            # Start looping over voltages
+            for bias in pbar_volts:
+                
+                # Set next voltage
+                smu.set_voltage(bias)
+    
+                # Read current 
                 current = get_current_reading(device=smu)
-                writer.write_row(timestamp=time(), voltage=bias, current=current)
-                pbar_volts.set_postfix_str(f'Current={current:.3E}A')
+
+                # Check if we are above the current limit
+                if current  > current_limit and current < 1e37:
+                    warnings.warn(f"Current limit exceeded with {current:.2E} A. Abort.", Warning)
+                    break
+                
+                # Let the voltage settle
+                sleep(_settle_delay)
             
-            # Take n_meas > 1 measurements
-            else:
-                current = np.zeros(shape=n_meas, dtype=float)
-                for i in range(n_meas):
-                    current[i] = get_current_reading(device=smu)
-                    sleep(_meas_delay)
+                # We only take one measurement
+                if n_meas == 1:
+                    current = get_current_reading(device=smu)
+                    writer.write_row(timestamp=time(), bias=bias, current=current)
+                    pbar_volts.set_postfix_str(f'Current={current:.3E}A')
+                
+                # Take n_meas > 1 measurements
+                else:
+                    current = np.zeros(shape=n_meas, dtype=float)
+                    for i in range(n_meas):
+                        current[i] = get_current_reading(device=smu)
+                        sleep(_meas_delay)
 
-                writer.write_row(timestamp=time(), voltage=bias, mean_current=current.mean(), std_current=current.std())
-                pbar_volts.set_postfix_str('Current=({:.3E}{}{:.3E})A'.format(current.mean(), u'\u00B1', current.std()))
+                    writer.write_row(timestamp=time(), bias=bias, mean_current=current.mean(), std_current=current.std())
+                    pbar_volts.set_postfix_str('Current=({:.3E}{}{:.3E})A'.format(current.mean(), u'\u00B1', current.std()))
 
-    # Ensure we go back to 0 volts
-    ramp_voltage(device=smu, target_voltage=0)
+    finally:
 
-    if hasattr(smu, 'off'):
-        smu.off()
+        # Ensure we go back to 0 volts with the same stepping as IV measurements
+        ramp_voltage(device=smu, target_voltage=0, steps=bias_steps)
+
+        if hasattr(smu, 'off'):
+            smu.off()
