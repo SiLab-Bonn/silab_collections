@@ -9,11 +9,11 @@ from silab_collections.utils.data_writer import DataWriter
 from silab_collections.meas.utils import get_current_reading, ramp_voltage
 from basil.dut import Dut
 from tqdm import tqdm
-from time import time, sleep
+from time import time, sleep, strftime
 from collections import Iterable
 
 
-def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, bias_steps=None, n_meas=1, smu_name=None, **writer_kwargs):
+def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, bias_steps=None, n_meas=1, smu_name=None, log_progress=False, **writer_kwargs):
     """
     Basic IV scan using a single source-measure unit (SMU).
 
@@ -35,6 +35,8 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
         Number of measurements per voltage step. If *n_meas* > 1, the mean is taken
     smu_name : str, optional
         If given, it is used as smu = Dut[*smu_name*] to extract the SMU, if None *smu_config* can only have one SMU, by default None
+    log_progress: bool, optional
+        Whether to print the measurements of each voltage step persistently over the progressbar 
     """
 
     # Initialize dut
@@ -141,7 +143,7 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
                 if n_meas == 1:
                     current = get_current_reading(device=smu)
                     writer.write_row(timestamp=time(), bias=bias, current=current)
-                    pbar_volts.set_postfix_str(f'Current={current:.3E}A')
+                    current_str = f'Current={current:.3E}A'
                 
                 # Take n_meas > 1 measurements
                 else:
@@ -151,7 +153,15 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
                         sleep(meas.MEAS_DELAY)
 
                     writer.write_row(timestamp=time(), bias=bias, mean_current=current.mean(), std_current=current.std())
-                    pbar_volts.set_postfix_str('Current=({:.3E}{}{:.3E})A'.format(current.mean(), u'\u00B1', current.std()))
+                    current_str = 'Current=({:.3E}{}{:.3E})A'.format(current.mean(), u'\u00B1', current.std()))
+                
+                # Update progressbars poststr
+                pbar_volts.set_postfix_str(current_str)
+
+                if log_progress:
+                    # Construct string
+                    log = 'INFO @ {} -> Bias={:.3f}V, {}'.format(strftime('%H:%M:%S'), bias, current_str)
+                    pbar_volts.write(log)
 
     finally:
 
