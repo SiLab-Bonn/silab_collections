@@ -4,8 +4,9 @@ This file contains functions for standalone IV measurements
 
 import warnings
 import numpy as np
+import silab_collections.meas as meas
 from silab_collections.utils.data_writer import DataWriter
-from silab_collections.meas.utils import get_current_reading, get_voltage_reading, ramp_voltage
+from silab_collections.meas.utils import get_current_reading, ramp_voltage
 from basil.dut import Dut
 from tqdm import tqdm
 from time import time, sleep
@@ -35,10 +36,6 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
     smu_name : str, optional
         If given, it is used as smu = Dut[*smu_name*] to extract the SMU, if None *smu_config* can only have one SMU, by default None
     """
-
-    # Constants
-    _meas_delay = 0.1  # Delay between to consecutive measurements in seconds
-    _settle_delay = 1  # Delay after setting a new bias voltage in seconds
 
     # Initialize dut
     dut = Dut(smu_config)
@@ -138,7 +135,7 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
                     break
                 
                 # Let the voltage settle
-                sleep(_settle_delay)
+                sleep(meas.BIAS_SETTLE_DELAY)
             
                 # We only take one measurement
                 if n_meas == 1:
@@ -151,7 +148,7 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
                     current = np.zeros(shape=n_meas, dtype=float)
                     for i in range(n_meas):
                         current[i] = get_current_reading(device=smu)
-                        sleep(_meas_delay)
+                        sleep(meas.MEAS_DELAY)
 
                     writer.write_row(timestamp=time(), bias=bias, mean_current=current.mean(), std_current=current.std())
                     pbar_volts.set_postfix_str('Current=({:.3E}{}{:.3E})A'.format(current.mean(), u'\u00B1', current.std()))
