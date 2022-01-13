@@ -153,7 +153,7 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
                         sleep(meas.MEAS_DELAY)
 
                     writer.write_row(timestamp=time(), bias=bias, mean_current=current.mean(), std_current=current.std())
-                    current_str = 'Current=({:.3E}{}{:.3E})A'.format(current.mean(), u'\u00B1', current.std()))
+                    current_str = 'Current=({:.3E}{}{:.3E})A'.format(current.mean(), u'\u00B1', current.std())
                 
                 # Update progressbars poststr
                 pbar_volts.set_postfix_str(current_str)
