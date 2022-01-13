@@ -51,6 +51,7 @@ def iv_scan_basic_example():
     #                  smu_config=smu_config,
     #                  bias_voltage=[0, 1, 2, 3, 4, 5, 10, 15, 20],  # IV scan with custom voltages
     #                  current_limit=1e-6,  # Current limit in A
+    #                  log_progress=True,  # Show measurements of each bias step above progressbar
     #                  overwrite=True,  # Additional kwargs are passed to the writer
     #                  outtype=DataWriter.TABLES)  # Additional kwargs are passed to the writer
 
