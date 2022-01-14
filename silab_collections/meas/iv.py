@@ -106,7 +106,7 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
 
     # Ensure voltage range
     if hasattr(smu, 'set_voltage_range'):
-        smu.set_voltage_range(bias_voltage)
+        smu.set_voltage_range(float(np.max(np.abs(bias_voltage))) if isinstance(bias_voltage, list) else bias_voltage)
 
     # Switch on SMU if possible from basil
     if hasattr(smu, 'on'):
@@ -160,7 +160,7 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
 
                 if log_progress:
                     # Construct string
-                    log = 'INFO @ {} -> Bias={:.3f}V, {}'.format(strftime('%H:%M:%S'), bias, current_str)
+                    log = 'INFO @ {} -> Bias={:.3f}V, {}'.format(strftime('%d-%m-%Y %H:%M:%S'), bias, current_str)
                     pbar_volts.write(log)
 
     finally:
