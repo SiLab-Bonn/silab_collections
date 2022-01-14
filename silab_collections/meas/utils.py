@@ -65,9 +65,11 @@ def ramp_voltage(device, target_voltage=0, delay=1, steps=None):
 
     # Create voltages to loop through
     if steps is None:
-        volts = np.linspace(current_voltage, target_voltage, int(abs(target_voltage-current_voltage)+1)) 
+        volts = np.linspace(current_voltage, target_voltage, int(abs(target_voltage-current_voltage)+2)) 
     else:
         volts = np.linspace(current_voltage, target_voltage, int(steps))
+
+    print(volts)
     
     # Make progressbar
     pbar_ramp = tqdm(volts, unit='voltage steps', desc=f'Ramping voltage to {target_voltage} V')
@@ -85,5 +87,5 @@ def ramp_voltage(device, target_voltage=0, delay=1, steps=None):
     # Get the current voltage
     current_voltage = get_voltage_reading(device=device)
 
-    if not np.isclose(current_voltage, target_voltage, atol=1e-2):
+    if not np.isclose(current_voltage, target_voltage, atol=1e-1):
         raise RuntimeError(f"Ramping voltage to target of {target_voltage} V failed. ({current_voltage} V after ramping.")
