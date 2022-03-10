@@ -20,7 +20,7 @@ class DataWriter:
     TABLES: int = 1
     _FILE_EXTENSION: dict = {CSV: '.csv', TABLES: '.h5'}
 
-    def __init__(self, outfile, columns, identifier='measurement', outtype=CSV, comments=None, overwrite=False):
+    def __init__(self, outfile, columns, identifier='measurement', outtype=CSV, comments='', overwrite=False):
         """
         Parameters
         ----------
@@ -33,7 +33,7 @@ class DataWriter:
         outtype : int, optional
             Type of output file to be written to, by default DataWriter.CSV (=0)
         comments : str, iterable of str, optional
-            Comments which are stored within the outfile, by default None. Useful for storing e.g. conditions
+            Comments which are stored within the outfile, by default ''. Useful for storing e.g. conditions
             of the data recording such as temperature, humidity, date, measurement device, etc. 
         overwrite : bool, optional
             Whether to overwrite outfile if it already exists, by default False
