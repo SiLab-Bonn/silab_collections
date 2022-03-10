@@ -13,7 +13,7 @@ from time import time, sleep, strftime
 from collections import Iterable
 
 
-def cv_scan(outfile, cv_config, smu_name, lcr_name, bias_voltage, ac_voltage, ac_frequency, current_limit, bias_polarity=1, bias_steps=None, n_meas=1, log_progress=False, **writer_kwargs):
+def cv_scan(outfile, cv_config, smu_name, lcr_name, lcr_func, bias_voltage, ac_voltage, ac_frequency, current_limit, bias_polarity=1, bias_steps=None, n_meas=1, log_progress=False, **writer_kwargs):
     """
     CV scan using a single source-measure unit (SMU) as well as the HPLCR meter.
 
@@ -54,12 +54,15 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, bias_voltage, ac_voltage, ac
     # get LCR meter by name
     lcr = dut[lcr_name]
 
+    lcr.set_meas_func(lcr_func)
+
     # Stuff for the DataWriter
     # Prepare comments
     # Check if comments are in writer_kwargs and replace if so
     if 'comments' not in writer_kwargs:
         writer_kwargs['comments'] = [f'SMU: {smu.get_name()}',
                                      f'LCR meter: {lcr.get_name()}',
+                                     f'LCR measurement function: {lcr.get_meas_func()}'
                                      f'AC voltage: {ac_voltage} V @ {ac_frequency} Hz',
                                      f'Current limit: {current_limit:.2E} A',
                                      f'Measurements per voltage step: {n_meas}']
@@ -70,9 +73,9 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, bias_voltage, ac_voltage, ac
     
     # Don't allow the user to set the columns
     if n_meas == 1:
-        writer_kwargs['columns'] = ['timestamp', 'bias', 'current', 'cp', 'rp']
+        writer_kwargs['columns'] = ['timestamp', 'bias', 'current', 'primary', 'secondary']
     else:
-        writer_kwargs['columns'] = ['timestamp', 'bias', 'mean_current', 'std_current', 'mean_cp', 'std_cp', 'mean_rp', 'std_rp']
+        writer_kwargs['columns'] = ['timestamp', 'bias', 'mean_current', 'std_current', 'mean_primary', 'std_primary', 'mean_secondary', 'std_secondary']
     
     if writer_kwargs['outtype'] == DataWriter.TABLES:
         writer_kwargs['columns'] = np.dtype(list(zip(writer_kwargs['columns'], [float] * len(writer_kwargs['columns']))))
@@ -117,6 +120,13 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, bias_voltage, ac_voltage, ac
     # Ensure we start from 0 volts
     ramp_voltage(device=smu, target_voltage=0, steps=bias_steps)
     
+    # Set AC parameters
+    lcr.ac_voltage = ac_voltage
+    lcr.frequency = ac_frequency
+    
+    # Trigger manually
+    lcr.set_trigger_mode('HOLD')
+    
     try:
 
         with data_writer as writer:
@@ -144,19 +154,21 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, bias_voltage, ac_voltage, ac
                 # We only take one measurement
                 if n_meas == 1:
                     current = get_current_reading(device=smu)
-                    cp, rp = lcr.CPRP
-                    writer.write_row(timestamp=time(), bias=bias, current=current, cp=cp, rp=rp)
+                    primary, secondary = getattr(lcr, lcr_func)
+                    writer.write_row(timestamp=time(), bias=bias, current=current, primary=primary, secondary=secondary)
                     current_str = f'Current={current:.3E}A'
                 
                 # Take n_meas > 1 measurements
                 else:
-                    current = cp = rp = (np.zeros(shape=n_meas, dtype=float) for _ in range(3))
+                    current = primary = secondary = (np.zeros(shape=n_meas, dtype=float) for _ in range(3))
                     for i in range(n_meas):
                         current[i] = get_current_reading(device=smu)
-                        cp[i], rp[i] = lcr.CPRP
+                        primary[i], secondary[i] = getattr(lcr, lcr_func)
                         sleep(meas.MEAS_DELAY)
 
-                    writer.write_row(timestamp=time(), bias=bias, mean_current=current.mean(), std_current=current.std(), mean_cp=cp.mean(), std_cp=cp.std(), mean_rp=rp.mean(), std_rp=rp.std())
+                    writer.write_row(timestamp=time(), bias=bias, mean_current=current.mean(), std_current=current.std(),
+                                     mean_primary=primary.mean(), std_primary=primary.std(), mean_secondary=secondary.mean(),
+                                     std_secondary=secondary.std())
                     current_str = 'Current=({:.3E}{}{:.3E})A'.format(current.mean(), u'\u00B1', current.std())
                 
                 # Update progressbars poststr
