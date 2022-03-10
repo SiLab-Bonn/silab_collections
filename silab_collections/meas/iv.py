@@ -5,7 +5,7 @@ This file contains functions for standalone IV measurements
 import warnings
 import numpy as np
 import silab_collections.meas as meas
-from silab_collections.utils.data_writer import DataWriter
+from silab_collections.meas.data_writer import DataWriter
 from silab_collections.meas.utils import get_current_reading, ramp_voltage
 from basil.dut import Dut
 from tqdm import tqdm
