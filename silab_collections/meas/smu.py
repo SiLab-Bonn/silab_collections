@@ -22,6 +22,8 @@ def get_current_reading(smu):
 
     # Life is easier with formatting
     if hasattr(smu, 'has_formatting') and smu.has_formatting:
+        if not smu.formatting_enabled:
+            smu.enable_formatting()
         return float(smu.get_current())
     else:
         typ = get_smu_type(smu)
@@ -37,6 +39,8 @@ def get_voltage_reading(smu):
 
     # Life is easier with formatting
     if hasattr(smu, 'has_formatting') and smu.has_formatting:
+        if not smu.formatting_enabled:
+            smu.enable_formatting()
         return float(smu.get_voltage())
     else:
         typ = get_smu_type(smu)

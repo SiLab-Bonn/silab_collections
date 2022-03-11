@@ -68,9 +68,9 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
     # Prepare comments
     # Check if comments are in writer_kwargs and replace if so
     if 'comments' not in writer_kwargs:
-        writer_kwargs['comments'] = [f'SMU: {smu.get_name()}',
-                                     f'LCR meter: {lcr.get_name()}',
-                                     f'LCR measurement function: {lcr.get_meas_func()}'
+        writer_kwargs['comments'] = [f'SMU: {smu.get_name().strip()}',
+                                     f'LCR meter: {lcr.get_name().strip()}',
+                                     f'LCR measurement function: {lcr.get_meas_func().strip()}'
                                      f'AC voltage: {ac_voltage} V @ {ac_frequency} Hz',
                                      f'Current limit: {current_limit:.2E} A',
                                      f'Measurements per voltage step: {n_meas}',
@@ -82,7 +82,7 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
     else:
         writer_kwargs['columns'] = ['timestamp', 'bias', 'mean_current', 'std_current', 'mean_primary', 'std_primary', 'mean_secondary', 'std_secondary']
     
-    if writer_kwargs['outtype'] == DataWriter.TABLES:
+    if 'outtype' in writer_kwargs and writer_kwargs['outtype'] == DataWriter.TABLES:
         writer_kwargs['columns'] = np.dtype(list(zip(writer_kwargs['columns'], [float] * len(writer_kwargs['columns']))))
 
     # Make instance of data writer
@@ -134,7 +134,7 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
                 
                 # Take n_meas > 1 measurements
                 else:
-                    current = primary = secondary = (np.zeros(shape=n_meas, dtype=float) for _ in range(3))
+                    current, primary, secondary = (np.zeros(shape=n_meas, dtype=float) for _ in range(3))
                     for i in range(n_meas):
                         current[i] = smu_utils.get_current_reading(smu=smu)
                         primary[i], secondary[i] = getattr(lcr, lcr_func)
@@ -143,7 +143,13 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
                     writer.write_row(timestamp=time(), bias=bias, mean_current=current.mean(), std_current=current.std(),
                                      mean_primary=primary.mean(), std_primary=primary.std(), mean_secondary=secondary.mean(),
                                      std_secondary=secondary.std())
-                    meas_str = f"LCR function: {lcr_func}, Primary: ({primary.mean():.3E}{u'\u00B1'}{primary.std()}), Secondary: ({secondary.mean():.3E}{u'\u00B1'}{secondary.std()})"
+                    meas_str = "LCR function: {}, Primary: ({:.3E}{}{}), Secondary: ({:.3E}{}{})".format(lcr_func,
+                                                                                                         primary.mean(),
+                                                                                                         u'\u00B1',
+                                                                                                         primary.std(),
+                                                                                                         secondary.mean(),
+                                                                                                         u'\u00B1', 
+                                                                                                         secondary.std())
                     current_str = 'Current=({:.3E}{}{:.3E})A'.format(current.mean(), u'\u00B1', current.std())
                 
                 # Update progressbars poststr
@@ -167,3 +173,5 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
         
         if hasattr(smu, 'off'):
             smu.off()
+
+        dut.close()

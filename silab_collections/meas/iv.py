@@ -64,7 +64,7 @@ def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, b
     # Prepare comments
     # Check if comments are in writer_kwargs and replace if so
     if 'comments' not in writer_kwargs:
-        writer_kwargs['comments'] = [f'SMU: {smu.get_name()}',
+        writer_kwargs['comments'] = [f'SMU: {smu.get_name().strip()}',
                                      f'Current limit: {current_limit:.2E} A',
                                      f'Measurements per voltage step: {n_meas}',
                                      f"Bias voltages: ({', '.join(str(bv) for bv in bias_volts)}) V"]
@@ -72,7 +72,7 @@ def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, b
     # Don't allow the user to set the columns
     writer_kwargs['columns'] = ['timestamp', 'bias', 'current'] if n_meas == 1 else ['timestamp', 'bias', 'mean_current', 'std_current']
     
-    if writer_kwargs['outtype'] == DataWriter.TABLES:
+    if 'outtype' in writer_kwargs and writer_kwargs['outtype'] == DataWriter.TABLES:
         writer_kwargs['columns'] = np.dtype(list(zip(writer_kwargs['columns'], [float] * len(writer_kwargs['columns']))))
 
     # Make instance of data writer
@@ -139,3 +139,5 @@ def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, b
 
         if hasattr(smu, 'off'):
             smu.off()
+
+        dut.close()
