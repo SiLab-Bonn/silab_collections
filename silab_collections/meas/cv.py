@@ -5,56 +5,64 @@ This file contains functions for standalone CV measurements
 import warnings
 import numpy as np
 import silab_collections.meas as meas
+import silab_collections.meas.smu as smu_utils
 from silab_collections.meas.data_writer import DataWriter
-from silab_collections.meas.utils import get_current_reading, ramp_voltage
 from basil.dut import Dut
 from tqdm import tqdm
 from time import time, sleep, strftime
-from collections import Iterable
 
 
-def cv_scan(outfile, cv_config, smu_name, lcr_name, lcr_func, bias_voltage, ac_voltage, ac_frequency, current_limit, bias_polarity=1, bias_steps=None, n_meas=1, log_progress=False, **writer_kwargs):
+def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bias_voltage, current_limit, lcr_func='CPRP', bias_polarity=1, bias_settle_delay=5, bias_steps=None, n_meas=1, log_progress=False, **writer_kwargs):
     """
-    CV scan using a single source-measure unit (SMU) as well as the HPLCR meter.
+    CV scan using a single source-measure unit (SMU) as well as the HP4284A LCR meter.
 
     Parameters
     ----------
     outfile : str
         Output file to write to. By default the type is CSV, can be changed by passing the respective kwargs via **writer_kwargs
-    smu_config : str, dict, File
-        Config file passed to basil.dut.Dut of the respective SMU
-    bias_voltage : float, int
-        Maximum voltage to which the bias voltage is ramped
+    cv_config : str, dict, File
+        Config file passed to basil.dut.Dut of the respective setup devices, namely one SMU and LCR meter
+    smu_name : str
+        Name of SMU given in *cv_config*
+    lcr_name : str
+        Name of LCR meter given in *cv_config*
+    ac_voltage: float
+        The AC voltage of the LCR meter in V. Typical values are in the order of 5 mV
+    ac_frequency: float
+        The AC frequency of *ac_voltage*, Typical values ar in the order of 1kHz (10kHz for irradiated devices)
+    bias_voltage : float, int, Iterable
+        Voltage to which is ramped in V. Can also be an Iterable of voltages to use instead
     current_limit : float
         Current limit in A
+    lcr_func : str, optinal
+        Measurement function of the LCR meter as defined in h2484a.MEAS_FUNCS, by default 'CPRP'
     bias_polarity : int, optional
-        Bias voltage polarity, - 1 if *bias_polarity* < 0 else 1, by default 1
+        Bias voltage polarity (bias will be calculated by polarity * bias_voltage), - 1 if *bias_polarity* < 0 else 1, by default 1
+    bias_settle_delay : float
+        Number of seconds to wait after a new bias voltage has been set before taking a measurement, by default 5. Needs to increase with capacitance
     bias_steps : int, optional
         If not None, *bias_voltage* is ramped in *bias_steps* equidistant steps using numpy.linspace, by default None
     n_meas : int, optional
         Number of measurements per voltage step. If *n_meas* > 1, the mean is taken
-    smu_name : str, optional
-        If given, it is used as smu = Dut[*smu_name*] to extract the SMU, if None *smu_config* can only have one SMU, by default None
     log_progress: bool, optional
         Whether to print the measurements of each voltage step persistently over the progressbar 
     """
-
-    # Initial check for HP 4284A LCR meter which is needed
-    if not any(hwd['type'] == 'hp4284a' for hwd in cv_config['hw_drivers']):
-        raise RuntimeError("This measurement script requires the HP 4284A LCR meter")
-
-
+    # Set bias settle delay to 5 seconds for large capacitances
+    meas.BIAS_SETTLE_DELAY = bias_settle_delay
+    
     # Initialize dut
     dut = Dut(cv_config)
     dut.init()
 
-    # Get SMU from dut
-    smu = dut[smu_name]
+    # Initial check for HP 4284A LCR meter which is needed
+    if not any(hwd['type'] == 'hp4284a' for hwd in dut._conf['hw_drivers']):
+        raise RuntimeError("This measurement script requires the HP 4284A LCR meter")
 
-    # get LCR meter by name
-    lcr = dut[lcr_name]
+    # Get SMU and LCR meter from dut
+    smu, lcr = dut[smu_name], dut[lcr_name]
 
-    lcr.set_meas_func(lcr_func)
+    # Generate array of bias voltages to loop over
+    bias_volts = smu_utils.generate_bias_volts(bias=bias_voltage, steps=bias_steps, polarity=bias_polarity)
 
     # Stuff for the DataWriter
     # Prepare comments
@@ -65,11 +73,8 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, lcr_func, bias_voltage, ac_v
                                      f'LCR measurement function: {lcr.get_meas_func()}'
                                      f'AC voltage: {ac_voltage} V @ {ac_frequency} Hz',
                                      f'Current limit: {current_limit:.2E} A',
-                                     f'Measurements per voltage step: {n_meas}']
-    
-    # Prepare output file type
-    if 'outtype' not in writer_kwargs:
-        writer_kwargs['outtype'] = DataWriter.CSV  
+                                     f'Measurements per voltage step: {n_meas}',
+                                     f"Bias voltages: ({', '.join(str(bv) for bv in bias_volts)}) V"]
     
     # Don't allow the user to set the columns
     if n_meas == 1:
@@ -83,48 +88,16 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, lcr_func, bias_voltage, ac_v
     # Make instance of data writer
     data_writer = DataWriter(outfile=outfile, **writer_kwargs)
 
-    # Create voltage steps etc.
-    if isinstance(bias_voltage, Iterable):
-        try:
-            bias_volts = [float(bv) for bv in bias_voltage]
-            writer_kwargs['comments'].append('Bias voltages: ({}) V'.format(', '.join(str(bv) for bv in bias_volts)))
-        except ValueError:
-            raise ValueError("*bias_voltage* must be iterable of voltages convertable to floats")
-    else:
-        bias_polarity = 1 if bias_polarity > 0 else -1
-        max_bias = bias_polarity * bias_voltage
-        if bias_steps is None:
-            bias_volts = np.linspace(0, max_bias, int(abs(max_bias)+1))
-        else:
-            bias_volts = np.linspace(0, max_bias, int(bias_steps))
-
-        writer_kwargs['comments'].append(f'Bias voltage: {max_bias} V in {(abs(max_bias) + 1) / len(bias_volts)} V steps')
-
-    # Adjust the SMU from basil if possible
-    # Ensure we are in voltage sourcing mode
-    if hasattr(smu, 'source_voltage'):
-        smu.source_volt()
-    
-    # Ensure compliance limit
-    if hasattr(smu, 'set_current_limit'):
-        smu.set_current_limit(current_limit)
-
-    # Ensure voltage range
-    if hasattr(smu, 'set_voltage_range'):
-        smu.set_voltage_range(float(np.max(np.abs(bias_voltage))) if isinstance(bias_voltage, list) else bias_voltage)
-
-    # Switch on SMU if possible from basil
-    if hasattr(smu, 'on'):
-        smu.on()
+    # Setup our SMU
+    smu_utils.setup_voltage_source(smu=smu, bias_voltage=bias_volts, current_limit=current_limit)
 
     # Ensure we start from 0 volts
-    ramp_voltage(device=smu, target_voltage=0, steps=bias_steps)
+    smu_utils.ramp_voltage(smu=smu, target_voltage=0, steps=bias_steps)
     
     # Set AC parameters
     lcr.ac_voltage = ac_voltage
     lcr.frequency = ac_frequency
-    
-    # Trigger manually
+    lcr.set_meas_func(lcr_func)
     lcr.set_trigger_mode('HOLD')
     
     try:
@@ -141,7 +114,7 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, lcr_func, bias_voltage, ac_v
                 smu.set_voltage(bias)
     
                 # Read current 
-                current = get_current_reading(device=smu)
+                current = smu_utils.get_current_reading(smu=smu)
 
                 # Check if we are above the current limit
                 if current  > current_limit and current < 1e37:
@@ -153,22 +126,24 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, lcr_func, bias_voltage, ac_v
             
                 # We only take one measurement
                 if n_meas == 1:
-                    current = get_current_reading(device=smu)
+                    current = smu_utils.get_current_reading(smu=smu)
                     primary, secondary = getattr(lcr, lcr_func)
                     writer.write_row(timestamp=time(), bias=bias, current=current, primary=primary, secondary=secondary)
+                    meas_str = f'LCR function: {lcr_func}, Primary: {primary:.3E}, Secondary: {secondary:.3E}'
                     current_str = f'Current={current:.3E}A'
                 
                 # Take n_meas > 1 measurements
                 else:
                     current = primary = secondary = (np.zeros(shape=n_meas, dtype=float) for _ in range(3))
                     for i in range(n_meas):
-                        current[i] = get_current_reading(device=smu)
+                        current[i] = smu_utils.get_current_reading(smu=smu)
                         primary[i], secondary[i] = getattr(lcr, lcr_func)
                         sleep(meas.MEAS_DELAY)
 
                     writer.write_row(timestamp=time(), bias=bias, mean_current=current.mean(), std_current=current.std(),
                                      mean_primary=primary.mean(), std_primary=primary.std(), mean_secondary=secondary.mean(),
                                      std_secondary=secondary.std())
+                    meas_str = f"LCR function: {lcr_func}, Primary: ({primary.mean():.3E}{u'\u00B1'}{primary.std()}), Secondary: ({secondary.mean():.3E}{u'\u00B1'}{secondary.std()})"
                     current_str = 'Current=({:.3E}{}{:.3E})A'.format(current.mean(), u'\u00B1', current.std())
                 
                 # Update progressbars poststr
@@ -176,15 +151,19 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, lcr_func, bias_voltage, ac_v
 
                 if log_progress:
                     # Construct string
-                    log = 'INFO @ {} -> Bias={:.3f}V, {}'.format(strftime('%d-%m-%Y %H:%M:%S'), bias, current_str)
+                    log = 'INFO @ {} -> Bias={:.3f}V, {} -> {}'.format(strftime('%d-%m-%Y %H:%M:%S'), bias, current_str, meas_str)
                     pbar_volts.write(log)
 
     finally:
 
         lcr.ac_voltage = 'MIN'
 
-        # Ensure we go back to 0 volts with the same stepping as IV measurements
-        ramp_voltage(device=smu, target_voltage=0, steps=bias_steps)
-
+        # For CV the voltage can sometimes be not 0 after the ramping due to large capacitances which are measured keeping the voltage higher
+        try:
+            # Ensure we go back to 0 volts with the same stepping as IV measurements
+            smu_utils.ramp_voltage(smu=smu, target_voltage=0, steps=bias_steps)
+        except RuntimeError:
+            pass
+        
         if hasattr(smu, 'off'):
             smu.off()
