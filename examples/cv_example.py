@@ -39,7 +39,7 @@ def cv_scan_example():
                lcr_name='LCRMeter',
                ac_voltage=5e-3,
                ac_frequency=1e3,
-               bias_polarity=30,
+               bias_voltage=30,
                current_limit=20e-6,
                overwrite=True)  # DataWriter
 
