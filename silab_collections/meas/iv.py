@@ -5,15 +5,15 @@ This file contains functions for standalone IV measurements
 import warnings
 import numpy as np
 import silab_collections.meas as meas
+import silab_collections.meas.smu as smu_utils
 from silab_collections.meas.data_writer import DataWriter
-from silab_collections.meas.utils import get_current_reading, ramp_voltage
 from basil.dut import Dut
 from tqdm import tqdm
 from time import time, sleep, strftime
 from collections import Iterable
 
 
-def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, bias_steps=None, n_meas=1, smu_name=None, log_progress=False, **writer_kwargs):
+def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, bias_steps=None, n_meas=1, smu_name=None, log_progress=False, **writer_kwargs):
     """
     Basic IV scan using a single source-measure unit (SMU).
 
@@ -57,17 +57,17 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
         msg += "Set *smu_name* or only have the SMU hardware driver in *smu_config*"
         raise ValueError(msg)
 
+    # Generate array of bias voltages to loop over
+    bias_volts = smu_utils.generate_bias_volts(bias=bias_voltage, steps=bias_steps, polarity=bias_polarity)
+
     # Stuff for the DataWriter
     # Prepare comments
     # Check if comments are in writer_kwargs and replace if so
     if 'comments' not in writer_kwargs:
         writer_kwargs['comments'] = [f'SMU: {smu.get_name()}',
                                      f'Current limit: {current_limit:.2E} A',
-                                     f'Measurements per voltage step: {n_meas}']
-    
-    # Prepare output file type
-    if 'outtype' not in writer_kwargs:
-        writer_kwargs['outtype'] = DataWriter.CSV  
+                                     f'Measurements per voltage step: {n_meas}',
+                                     f"Bias voltages: ({', '.join(str(bv) for bv in bias_volts)}) V"]
     
     # Don't allow the user to set the columns
     writer_kwargs['columns'] = ['timestamp', 'bias', 'current'] if n_meas == 1 else ['timestamp', 'bias', 'mean_current', 'std_current']
@@ -78,42 +78,11 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
     # Make instance of data writer
     data_writer = DataWriter(outfile=outfile, **writer_kwargs)
 
-    # Create voltage steps etc.
-    if isinstance(bias_voltage, Iterable):
-        try:
-            bias_volts = [float(bv) for bv in bias_voltage]
-            writer_kwargs['comments'].append('Bias voltages: ({}) V'.format(', '.join(str(bv) for bv in bias_volts)))
-        except ValueError:
-            raise ValueError("*bias_voltage* must be iterable of voltages convertable to floats")
-    else:
-        bias_polarity = 1 if bias_polarity > 0 else -1
-        max_bias = bias_polarity * bias_voltage
-        if bias_steps is None:
-            bias_volts = np.linspace(0, max_bias, int(abs(max_bias)+1))
-        else:
-            bias_volts = np.linspace(0, max_bias, int(bias_steps))
-
-        writer_kwargs['comments'].append(f'Bias voltage: {max_bias} V in {(abs(max_bias) + 1) / len(bias_volts)} V steps')
-
-    # Adjust the SMU from basil if possible
-    # Ensure we are in voltage sourcing mode
-    if hasattr(smu, 'source_voltage'):
-        smu.source_volt()
-    
-    # Ensure compliance limit
-    if hasattr(smu, 'set_current_limit'):
-        smu.set_current_limit(current_limit)
-
-    # Ensure voltage range
-    if hasattr(smu, 'set_voltage_range'):
-        smu.set_voltage_range(float(np.max(np.abs(bias_voltage))) if isinstance(bias_voltage, list) else bias_voltage)
-
-    # Switch on SMU if possible from basil
-    if hasattr(smu, 'on'):
-        smu.on()
+    # Setup our SMU
+    smu_utils.setup_voltage_source(smu=smu, bias_voltage=bias_volts, current_limit=current_limit)
 
     # Ensure we start from 0 volts
-    ramp_voltage(device=smu, target_voltage=0, steps=bias_steps)
+    smu_utils.ramp_voltage(smu=smu, target_voltage=0, steps=bias_steps)
     
     try:
 
@@ -129,7 +98,7 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
                 smu.set_voltage(bias)
     
                 # Read current 
-                current = get_current_reading(device=smu)
+                current = smu_utils.get_current_reading(smu=smu)
 
                 # Check if we are above the current limit
                 if current  > current_limit and current < 1e37:
@@ -141,7 +110,7 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
             
                 # We only take one measurement
                 if n_meas == 1:
-                    current = get_current_reading(device=smu)
+                    current = smu_utils.get_current_reading(smu=smu)
                     writer.write_row(timestamp=time(), bias=bias, current=current)
                     current_str = f'Current={current:.3E}A'
                 
@@ -149,7 +118,7 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
                 else:
                     current = np.zeros(shape=n_meas, dtype=float)
                     for i in range(n_meas):
-                        current[i] = get_current_reading(device=smu)
+                        current[i] = smu_utils.get_current_reading(smu=smu)
                         sleep(meas.MEAS_DELAY)
 
                     writer.write_row(timestamp=time(), bias=bias, mean_current=current.mean(), std_current=current.std())
@@ -166,7 +135,7 @@ def iv_scan_basic(outfile, smu_config, bias_voltage, current_limit, bias_polarit
     finally:
 
         # Ensure we go back to 0 volts with the same stepping as IV measurements
-        ramp_voltage(device=smu, target_voltage=0, steps=bias_steps)
+        smu_utils.ramp_voltage(smu=smu, target_voltage=0, steps=bias_steps)
 
         if hasattr(smu, 'off'):
             smu.off()
