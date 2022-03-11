@@ -70,7 +70,7 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
     if 'comments' not in writer_kwargs:
         writer_kwargs['comments'] = [f'SMU: {smu.get_name().strip()}',
                                      f'LCR meter: {lcr.get_name().strip()}',
-                                     f'LCR measurement function: {lcr.get_meas_func().strip()}'
+                                     f'LCR measurement function: {lcr.get_meas_func().strip()}',
                                      f'AC voltage: {ac_voltage} V @ {ac_frequency} Hz',
                                      f'Current limit: {current_limit:.2E} A',
                                      f'Measurements per voltage step: {n_meas}',
@@ -143,13 +143,13 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
                     writer.write_row(timestamp=time(), bias=bias, mean_current=current.mean(), std_current=current.std(),
                                      mean_primary=primary.mean(), std_primary=primary.std(), mean_secondary=secondary.mean(),
                                      std_secondary=secondary.std())
-                    meas_str = "LCR function: {}, Primary: ({:.3E}{}{}), Secondary: ({:.3E}{}{})".format(lcr_func,
-                                                                                                         primary.mean(),
-                                                                                                         u'\u00B1',
-                                                                                                         primary.std(),
-                                                                                                         secondary.mean(),
-                                                                                                         u'\u00B1', 
-                                                                                                         secondary.std())
+                    meas_str = "LCR function: {}, Primary: ({:.3E}{}{:.3E}), Secondary: ({:.3E}{}{:.3E})".format(lcr_func,
+                                                                                                                 primary.mean(),
+                                                                                                                 u'\u00B1',
+                                                                                                                 primary.std(),
+                                                                                                                 secondary.mean(),
+                                                                                                                 u'\u00B1', 
+                                                                                                                 secondary.std())
                     current_str = 'Current=({:.3E}{}{:.3E})A'.format(current.mean(), u'\u00B1', current.std())
                 
                 # Update progressbars poststr
