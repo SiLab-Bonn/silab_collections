@@ -12,6 +12,10 @@ After doing so, install the dependencies via
 Followed by 
 
     pip install basil_daq tqdm
+    
+To finally install the `silab_collections` package, activate your environment and type
+
+    python setup.py develop
 
 ## Examples
 Check out the `examples` folder
