@@ -10,10 +10,35 @@ from silab_collections.meas.data_writer import DataWriter
 from basil.dut import Dut
 from tqdm import tqdm
 from time import time, sleep, strftime
-from collections import Iterable
+
+def _measure_and_write_current(smu, n_meas, bias, writer, pbar, log):
+
+    # We only take one measurement
+    if n_meas == 1:
+        current = smu_utils.get_current_reading(smu=smu)
+        writer.write_row(timestamp=time(), bias=bias, current=current)
+        current_str = f'Current={current:.3E}A'
+    
+    # Take n_meas > 1 measurements
+    else:
+        current = np.zeros(shape=n_meas, dtype=float)
+        for i in range(n_meas):
+            current[i] = smu_utils.get_current_reading(smu=smu)
+            sleep(meas.MEAS_DELAY)
+
+        writer.write_row(timestamp=time(), bias=bias, mean_current=current.mean(), std_current=current.std())
+        current_str = 'Current=({:.3E}{}{:.3E})A'.format(current.mean(), u'\u00B1', current.std())
+
+    # Update progressbars poststr
+    pbar.set_postfix_str(current_str)
+
+    if log:
+        # Construct string
+        log = 'INFO @ {} -> Bias={:.3f}V, {}'.format(strftime('%d-%m-%Y %H:%M:%S'), bias, current_str)
+        pbar.write(log)
 
 
-def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, bias_steps=None, n_meas=1, smu_name=None, log_progress=False, **writer_kwargs):
+def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, bias_steps=None, n_meas=1, smu_name=None, log_progress=False, linger=False, **writer_kwargs):
     """
     Basic IV scan using a single source-measure unit (SMU).
 
@@ -36,7 +61,9 @@ def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, b
     smu_name : str, optional
         If given, it is used as smu = Dut[*smu_name*] to extract the SMU, if None *smu_config* can only have one SMU, by default None
     log_progress: bool, optional
-        Whether to print the measurements of each voltage step persistently over the progressbar 
+        Whether to print the measurements of each voltage step persistently over the progressbar
+    linger : bool, float, optional
+        Whether to continue measuring IV when the *bias_voltage* has been reached. If True, measure until user interrupt, else measure *linger* seconds
     """
 
     # Initialize dut
@@ -108,29 +135,25 @@ def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, b
                 # Let the voltage settle
                 sleep(meas.BIAS_SETTLE_DELAY)
             
-                # We only take one measurement
-                if n_meas == 1:
-                    current = smu_utils.get_current_reading(smu=smu)
-                    writer.write_row(timestamp=time(), bias=bias, current=current)
-                    current_str = f'Current={current:.3E}A'
-                
-                # Take n_meas > 1 measurements
-                else:
-                    current = np.zeros(shape=n_meas, dtype=float)
-                    for i in range(n_meas):
-                        current[i] = smu_utils.get_current_reading(smu=smu)
-                        sleep(meas.MEAS_DELAY)
+                _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_volts, log=log_progress)
 
-                    writer.write_row(timestamp=time(), bias=bias, mean_current=current.mean(), std_current=current.std())
-                    current_str = 'Current=({:.3E}{}{:.3E})A'.format(current.mean(), u'\u00B1', current.std())
-                
-                # Update progressbars poststr
-                pbar_volts.set_postfix_str(current_str)
+            # Loop did not break so there is no current exceeded
+            else:
 
-                if log_progress:
-                    # Construct string
-                    log = 'INFO @ {} -> Bias={:.3f}V, {}'.format(strftime('%d-%m-%Y %H:%M:%S'), bias, current_str)
-                    pbar_volts.write(log)
+                if linger:
+
+                    if type(linger) in (int, float):
+                        pbar_volts.write(f"Lingering for {linger} seconds...")
+                        start = time()
+                        while time() - start <= linger:
+                            _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_volts, log=log_progress)
+                    
+                    elif type(linger) is bool:
+                        pbar_volts.write("Lingering indefinetly. Press CTRL-C to stop...")
+                        while True:
+                            _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_volts, log=log_progress)
+                    else:
+                        raise ValueError("*Linger* needs to be bool or number of seconds")
 
     finally:
 
