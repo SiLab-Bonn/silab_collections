@@ -11,6 +11,7 @@ from basil.dut import Dut
 from tqdm import tqdm
 from time import time, sleep, strftime
 
+
 def _measure_and_write_current(smu, n_meas, bias, writer, pbar, log):
 
     # We only take one measurement
@@ -109,7 +110,7 @@ def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, b
     smu_utils.setup_voltage_source(smu=smu, bias_voltage=bias_volts, current_limit=current_limit)
 
     # Ensure we start from 0 volts
-    smu_utils.ramp_voltage(smu=smu, target_voltage=0, steps=bias_steps)
+    smu_utils.ramp_voltage(smu=smu, target_voltage=0)
     
     try:
 

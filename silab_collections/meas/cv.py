@@ -92,7 +92,7 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
     smu_utils.setup_voltage_source(smu=smu, bias_voltage=bias_volts, current_limit=current_limit)
 
     # Ensure we start from 0 volts
-    smu_utils.ramp_voltage(smu=smu, target_voltage=0, steps=bias_steps)
+    smu_utils.ramp_voltage(smu=smu, target_voltage=0)
     
     # Set AC parameters
     lcr.ac_voltage = ac_voltage
