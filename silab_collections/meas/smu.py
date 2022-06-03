@@ -5,7 +5,7 @@ Script containing SMU-related functionality
 import numpy as np
 from tqdm import tqdm
 from time import sleep
-from collections import Iterable
+from collections.abc import Iterable
 
 
 def get_smu_type(smu):
