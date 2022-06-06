@@ -141,6 +141,8 @@ def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, b
             # Loop did not break so there is no current exceeded
             else:
 
+                pbar_volts.close()
+
                 if linger:
 
                     if type(linger) in (int, float):
