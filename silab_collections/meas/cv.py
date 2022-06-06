@@ -167,7 +167,7 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
         # For CV the voltage can sometimes be not 0 after the ramping due to large capacitances which are measured keeping the voltage higher
         try:
             # Ensure we go back to 0 volts with the same stepping as IV measurements
-            smu_utils.ramp_voltage(smu=smu, target_voltage=0, steps=bias_steps)
+            smu_utils.ramp_voltage(smu=smu, target_voltage=0, steps=len(bias_volts))
         except RuntimeError:
             pass
         
