@@ -117,7 +117,7 @@ def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, b
         with data_writer as writer:
 
             # Make progress bar to loop over voltage steps
-            pbar_volts = tqdm(bias_volts, unit='bias steps', desc='IV curve basic')
+            pbar_volts = tqdm(bias_volts, unit='bias voltage', desc='IV curve basic')
 
             # Start looping over voltages
             for bias in pbar_volts:

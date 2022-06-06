@@ -105,7 +105,7 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
         with data_writer as writer:
 
             # Make progress bar to loop over voltage steps
-            pbar_volts = tqdm(bias_volts, unit='bias steps', desc='CV scan')
+            pbar_volts = tqdm(bias_volts, unit='bias voltage', desc='CV scan')
 
             # Start looping over voltages
             for bias in pbar_volts:
