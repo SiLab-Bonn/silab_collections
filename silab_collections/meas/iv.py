@@ -143,20 +143,37 @@ def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, b
 
                 pbar_volts.close()
 
+                # We want to linger at maximum bias
                 if linger:
-
-                    if type(linger) in (int, float):
-                        pbar_volts.write(f"Lingering for {linger} seconds...")
-                        start = time()
-                        while time() - start <= linger:
-                            _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_volts, log=log_progress)
                     
+                    # We linger for fixed amount of seconds
+                    if type(linger) in (int, float):
+                        start = time()
+                        condition = lambda: time() - start <= linger 
+                        description = f"Linger for {linger} seconds @ {bias} V..."
+                    # We liner indefinetely
                     elif type(linger) is bool:
-                        pbar_volts.write("Lingering indefinetly. Press CTRL-C to stop...")
-                        while True:
-                            _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_volts, log=log_progress)
+                        condition = lambda: True
+                        description = f"Linger indefinetely @ {bias} V..."
                     else:
                         raise ValueError("*Linger* needs to be bool or number of seconds")
+
+                    # Generator for tqdm yielding while *cond* is true
+                    def linger_loop(cond):
+                        while cond():
+                            yield
+
+                    # Make progresbar
+                    pbar_linger = tqdm(linger_loop(cond=condition), unit='Measurement', desc=description)
+                    pbar_linger.set_postfix_str("Press CTRL-C to exit...")
+
+                    # Start lingering
+                    try:
+                        for _ in pbar_linger:
+                            _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_linger, log=log_progress)
+                        pbar_linger.close()
+                    except KeyboardInterrupt:
+                        pass
 
     finally:
 
