@@ -129,6 +129,9 @@ def setup_voltage_source(smu, bias_voltage, current_limit):
     if hasattr(smu, 'set_voltage_range'):
         smu.set_voltage_range(float(np.max(np.abs(bias_voltage)) if isinstance(bias_voltage, Iterable) else np.abs(bias_voltage)))
 
+    # Set voltage to 0 V
+    smu.set_voltage(0)
+
     # Switch on SMU if possible from basil
     if hasattr(smu, 'on'):
         smu.on()
