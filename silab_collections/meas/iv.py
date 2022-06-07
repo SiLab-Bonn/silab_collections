@@ -164,8 +164,8 @@ def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, b
                             yield
 
                     # Make progresbar
-                    pbar_linger = tqdm(linger_loop(cond=condition), unit='Measurement', desc=description)
-                    pbar_linger.set_postfix_str("Press CTRL-C to exit...")
+                    pbar_linger = tqdm(linger_loop(cond=condition), unit=' Measurements', desc=description)
+                    pbar_linger.write("Press CTRL-C to exit...")
 
                     # Start lingering
                     try:
@@ -173,7 +173,8 @@ def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, b
                             _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_linger, log=log_progress)
                         pbar_linger.close()
                     except KeyboardInterrupt:
-                        pass
+                        # Discard anyting on the transfer layer buffer
+                        smu._intf.read()
 
     finally:
 
