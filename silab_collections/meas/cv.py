@@ -70,7 +70,7 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
     if 'comments' not in writer_kwargs:
         writer_kwargs['comments'] = [f'SMU: {smu.get_name().strip()}',
                                      f'LCR meter: {lcr.get_name().strip()}',
-                                     f'LCR measurement function: {lcr.get_meas_func().strip()}',
+                                     f'LCR measurement function: {lcr_func}',
                                      f'AC voltage: {ac_voltage} V @ {ac_frequency} Hz',
                                      f'Current limit: {current_limit:.2E} A',
                                      f'Measurements per voltage step: {n_meas}',
@@ -91,8 +91,8 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
     # Setup our SMU
     smu_utils.setup_voltage_source(smu=smu, bias_voltage=bias_volts, current_limit=current_limit)
 
-    # Ensure we start from 0 volts
-    smu_utils.ramp_voltage(smu=smu, target_voltage=0, steps=bias_steps)
+    # Ensure we start from first bias voltage
+    smu_utils.ramp_voltage(smu=smu, target_voltage=bias_volts[0])
     
     # Set AC parameters
     lcr.ac_voltage = ac_voltage
@@ -105,7 +105,7 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
         with data_writer as writer:
 
             # Make progress bar to loop over voltage steps
-            pbar_volts = tqdm(bias_volts, unit='bias steps', desc='CV scan')
+            pbar_volts = tqdm(bias_volts, unit='bias voltage', desc='CV scan')
 
             # Start looping over voltages
             for bias in pbar_volts:
@@ -167,7 +167,7 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
         # For CV the voltage can sometimes be not 0 after the ramping due to large capacitances which are measured keeping the voltage higher
         try:
             # Ensure we go back to 0 volts with the same stepping as IV measurements
-            smu_utils.ramp_voltage(smu=smu, target_voltage=0, steps=bias_steps)
+            smu_utils.ramp_voltage(smu=smu, target_voltage=0, steps=len(bias_volts))
         except RuntimeError:
             pass
         
