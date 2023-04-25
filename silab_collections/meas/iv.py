@@ -181,7 +181,6 @@ def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, b
         # Ensure we go back to 0 volts with the same stepping as IV measurements
         smu_utils.ramp_voltage(smu=smu, target_voltage=0, steps=len(bias_volts))
 
-        if hasattr(smu, 'off'):
-            smu.off()
+        smu_utils.call_method_if_exists(smu, 'off')
 
         dut.close()

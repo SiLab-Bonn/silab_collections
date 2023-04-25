@@ -8,6 +8,15 @@ from time import sleep
 from collections.abc import Iterable
 
 
+def call_method_if_exists(smu, method, *args, **kwargs):
+
+    try:
+        # The getattr will always succeed and return a callable which will fail with ValueError if they are not defined on the smu.
+        return getattr(smu, method)(*args, **kwargs)
+    except ValueError:
+        pass
+
+
 def get_smu_type(smu):
         basil_identifier = smu.get_name().split(',')
         if len(basil_identifier) > 1:
@@ -118,23 +127,19 @@ def setup_voltage_source(smu, bias_voltage, current_limit):
 
     # Adjust the SMU from basil if possible
     # Ensure we are in voltage sourcing mode
-    if hasattr(smu, 'source_voltage'):
-        smu.source_volt()
+    call_method_if_exists(smu, 'source_volt')
     
     # Ensure compliance limit
-    if hasattr(smu, 'set_current_limit'):
-        smu.set_current_limit(current_limit)
+    call_method_if_exists(smu, 'set_current_limit', current_limit)
 
     # Ensure voltage range
-    if hasattr(smu, 'set_voltage_range'):
-        smu.set_voltage_range(float(np.max(np.abs(bias_voltage)) if isinstance(bias_voltage, Iterable) else np.abs(bias_voltage)))
+    call_method_if_exists(smu, 'set_voltage_range', float(np.max(np.abs(bias_voltage)) if isinstance(bias_voltage, Iterable) else np.abs(bias_voltage)))
 
     # Set voltage to 0 V
-    smu.set_voltage(0)
+    call_method_if_exists(smu, 'set_voltage', 0)
 
     # Switch on SMU if possible from basil
-    if hasattr(smu, 'on'):
-        smu.on()
+    call_method_if_exists(smu, 'on')
 
 
 def ramp_voltage(smu, target_voltage=0, delay=1, steps=None):
@@ -162,8 +167,10 @@ def ramp_voltage(smu, target_voltage=0, delay=1, steps=None):
     if not all(hasattr(smu, f'{x}_voltage') for x in ('get', 'set')):
         raise AttributeError("SMU does not have voltage getter/setter methods")
 
-    if hasattr(smu, 'get_on') and not int(smu.get_on()):
-        smu.on()
+    smu_is_on = call_method_if_exists(smu, 'get_on')
+    if smu_is_on is not None:
+        if not int(smu_is_on.strip()):
+            call_method_if_exists(smu, 'on')
 
     # Get the current voltage
     current_voltage = get_voltage_reading(smu=smu)

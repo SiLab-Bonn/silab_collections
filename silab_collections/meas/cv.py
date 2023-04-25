@@ -171,7 +171,6 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
         except RuntimeError:
             pass
         
-        if hasattr(smu, 'off'):
-            smu.off()
+        smu_utils.call_method_if_exists(smu, 'off')
 
         dut.close()
