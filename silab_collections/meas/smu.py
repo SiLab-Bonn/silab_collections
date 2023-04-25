@@ -35,13 +35,14 @@ def get_current_reading(smu):
             smu.enable_formatting()
         return float(smu.get_current())
     else:
+        # Specifiy different smu type responses here; if not specified expect smu has get_current return value
         typ = get_smu_type(smu)
         if typ == 'KEITHLEY_2410':
             return float(smu.get_current().split(',')[1])
         elif typ == 'KEITHLEY_6517A'.upper():
-            return float(smu.get_current().split(',')[0][:-4])
+            return float(smu.get_read().split(',')[0][:-4])
         else:
-            return float(smu.get_current().split(',')[0])  # [1]
+            return float(smu.get_current())
 
 
 def get_voltage_reading(smu):
@@ -56,9 +57,9 @@ def get_voltage_reading(smu):
         if typ == 'KEITHLEY_2410':
             return float(smu.get_voltage().split(',')[0])
         elif typ == 'KEITHLEY_6517A':
-            return float(smu.get_voltage().split(',')[0][:-4])
+            return float(smu.get_read().split(',')[1][:-4])
         else:
-            return float(smu.get_voltage().split(',')[0])
+            return float(smu.get_voltage())
 
 def generate_bias_volts(bias, steps=None, polarity=1, check_monotonic=True):
     """
@@ -162,10 +163,6 @@ def ramp_voltage(smu, target_voltage=0, delay=1, steps=None):
     AttributeError:
         SMU does not have voltage getter/setter
     """
-
-    # Check for voltage getter and setter
-    if not all(hasattr(smu, f'{x}_voltage') for x in ('get', 'set')):
-        raise AttributeError("SMU does not have voltage getter/setter methods")
 
     smu_is_on = call_method_if_exists(smu, 'get_on')
     if smu_is_on is not None:
