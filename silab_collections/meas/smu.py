@@ -39,7 +39,7 @@ def get_current_reading(smu):
         typ = get_smu_type(smu)
         if typ == 'KEITHLEY_2410':
             return float(smu.get_current().split(',')[1])
-        elif typ == 'KEITHLEY_6517A'.upper():
+        elif typ == 'KEITHLEY_6517A':
             return float(smu.get_read().split(',')[0][:-4])
         else:
             return float(smu.get_current())
