@@ -7,7 +7,7 @@ def cv_scan_example():
     """
 
     # Basil configuration: adapt to your actual hardware
-    cv_config = {
+    cv_setup = {
         'transfer_layer': 
             [
             {'name': 'Visa',
@@ -34,7 +34,7 @@ def cv_scan_example():
 
     # CV scan
     cv.cv_scan(outfile='cv_scan_example.csv',
-               cv_config=cv_config,
+               cv_setup=cv_setup,
                smu_name='Sourcemeter',
                lcr_name='LCRMeter',
                ac_voltage=5e-3,
