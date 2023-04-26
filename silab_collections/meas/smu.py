@@ -136,11 +136,15 @@ def setup_voltage_source(smu, bias_voltage, current_limit):
     # Ensure voltage range
     call_method_if_exists(smu, 'set_voltage_range', float(np.max(np.abs(bias_voltage)) if isinstance(bias_voltage, Iterable) else np.abs(bias_voltage)))
 
-    # Set voltage to 0 V
-    call_method_if_exists(smu, 'set_voltage', 0)
-
-    # Switch on SMU if possible from basil
-    call_method_if_exists(smu, 'on')
+    # Check if smu is already on
+    smu_is_on = call_method_if_exists(smu, 'get_on')
+    if smu_is_on is not None and bool(smu_is_on.strip()):
+        # If smu is already on we want to ramp down to 0 volt
+        ramp_voltage(smu, delay=0.2)
+    # if we cannot tell, just ramp to 0 and turn on
+    else:
+        call_method_if_exists(smu, 'set_voltage', 0)
+        call_method_if_exists(smu, 'on')
 
 
 def ramp_voltage(smu, target_voltage=0, delay=1, steps=None):
