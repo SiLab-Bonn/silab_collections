@@ -57,7 +57,7 @@ def get_voltage_reading(smu):
         if typ == 'KEITHLEY_2410':
             return float(smu.get_voltage().split(',')[0])
         elif typ == 'KEITHLEY_6517A':
-            return float(smu.get_read().split(',')[1][:-4])
+            return float(smu.get_voltage())
         else:
             return float(smu.get_voltage())
 
