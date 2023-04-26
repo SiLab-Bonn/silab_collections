@@ -53,10 +53,12 @@ def cv_scan(outfile, cv_setup, smu_name, lcr_name, ac_voltage, ac_frequency, bia
     # We already have an initialized DUT
     if isinstance(cv_setup, Dut):
         dut = cv_setup
+        _close_dut = False
     else:
-        # Initialize dut
+        # Initialize dut ourselves and therefore also close it afterwards
         dut = Dut(cv_setup)
         dut.init()
+        _close_dut = True
 
     # Initial check for HP 4284A LCR meter which is needed
     if not any(hwd['type'] == 'hp4284a' for hwd in dut._conf['hw_drivers']):
@@ -177,4 +179,5 @@ def cv_scan(outfile, cv_setup, smu_name, lcr_name, ac_voltage, ac_frequency, bia
         
         smu_utils.call_method_if_exists(smu, 'off')
 
-        dut.close()
+        if _close_dut:
+            dut.close()

@@ -70,10 +70,12 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
     # We already have an initialized DUT
     if isinstance(iv_setup, Dut):
         dut = iv_setup
+        _close_dut = False
     else:
-        # Initialize dut
+        # Initialize dut ourselves and therefore also close it afterwards
         dut = Dut(iv_setup)
         dut.init()
+        _close_dut = True
 
     # Get SMU from dut
     # By name
@@ -187,4 +189,5 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
 
         smu_utils.call_method_if_exists(smu, 'off')
 
-        dut.close()
+        if _close_dut:
+            dut.close()
