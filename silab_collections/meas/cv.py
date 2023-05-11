@@ -12,7 +12,7 @@ from tqdm import tqdm
 from time import time, sleep, strftime
 
 
-def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bias_voltage, current_limit, lcr_func='CPRP', bias_polarity=1, bias_settle_delay=5, bias_steps=None, n_meas=1, log_progress=False, **writer_kwargs):
+def cv_scan(outfile, cv_setup, smu_name, lcr_name, ac_voltage, ac_frequency, bias_voltage, current_limit, lcr_func='CPRP', bias_polarity=1, bias_settle_delay=5, bias_steps=None, n_meas=1, log_progress=False, **writer_kwargs):
     """
     CV scan using a single source-measure unit (SMU) as well as the HP4284A LCR meter.
 
@@ -20,12 +20,12 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
     ----------
     outfile : str
         Output file to write to. By default the type is CSV, can be changed by passing the respective kwargs via **writer_kwargs
-    cv_config : str, dict, File
-        Config file passed to basil.dut.Dut of the respective setup devices, namely one SMU and LCR meter
+    cv_setup : str, dict, File, basil.dut.Dut
+        Config file passed to basil.dut.Dut of the respective setup devices, namely one SMU and LCR meter, or already initialized basil.dut.Dut
     smu_name : str
-        Name of SMU given in *cv_config*
+        Name of SMU given in *cv_setup*
     lcr_name : str
-        Name of LCR meter given in *cv_config*
+        Name of LCR meter given in *cv_setup*
     ac_voltage: float
         The AC voltage of the LCR meter in V. Typical values are in the order of 5 mV
     ac_frequency: float
@@ -50,9 +50,15 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
     # Set bias settle delay to 5 seconds for large capacitances
     meas.BIAS_SETTLE_DELAY = bias_settle_delay
     
-    # Initialize dut
-    dut = Dut(cv_config)
-    dut.init()
+    # We already have an initialized DUT
+    if isinstance(cv_setup, Dut):
+        dut = cv_setup
+        _close_dut = False
+    else:
+        # Initialize dut ourselves and therefore also close it afterwards
+        dut = Dut(cv_setup)
+        dut.init()
+        _close_dut = True
 
     # Initial check for HP 4284A LCR meter which is needed
     if not any(hwd['type'] == 'hp4284a' for hwd in dut._conf['hw_drivers']):
@@ -171,7 +177,7 @@ def cv_scan(outfile, cv_config, smu_name, lcr_name, ac_voltage, ac_frequency, bi
         except RuntimeError:
             pass
         
-        if hasattr(smu, 'off'):
-            smu.off()
+        smu_utils.call_method_if_exists(smu, 'off')
 
-        dut.close()
+        if _close_dut:
+            dut.close()

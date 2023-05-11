@@ -39,7 +39,7 @@ def _measure_and_write_current(smu, n_meas, bias, writer, pbar, log):
         pbar.write(log)
 
 
-def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, bias_steps=None, n_meas=1, smu_name=None, log_progress=False, linger=False, **writer_kwargs):
+def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bias_steps=None, n_meas=1, smu_name=None, log_progress=False, linger=False, **writer_kwargs):
     """
     Basic IV scan using a single source-measure unit (SMU).
 
@@ -47,8 +47,8 @@ def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, b
     ----------
     outfile : str
         Output file to write to. By default the type is CSV, can be changed by passing the respective kwargs via **writer_kwargs
-    smu_config : str, dict, File
-        Config file passed to basil.dut.Dut of the respective SMU
+    iv_setup : str, dict, File, basil.dut.Dut
+        Config file passed to basil.dut.Dut of the respective SMU or already initialized Dut
     bias_voltage : float, int
         Maximum voltage to which the bias voltage is ramped
     current_limit : float
@@ -60,16 +60,22 @@ def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, b
     n_meas : int, optional
         Number of measurements per voltage step. If *n_meas* > 1, the mean is taken
     smu_name : str, optional
-        If given, it is used as smu = Dut[*smu_name*] to extract the SMU, if None *smu_config* can only have one SMU, by default None
+        If given, it is used as smu = Dut[*smu_name*] to extract the SMU, if None *iv_setup* can only have one SMU, by default None
     log_progress: bool, optional
         Whether to print the measurements of each voltage step persistently over the progressbar
     linger : bool, float, optional
         Whether to continue measuring IV when the *bias_voltage* has been reached. If True, measure until user interrupt, else measure *linger* seconds
     """
 
-    # Initialize dut
-    dut = Dut(smu_config)
-    dut.init()
+    # We already have an initialized DUT
+    if isinstance(iv_setup, Dut):
+        dut = iv_setup
+        _close_dut = False
+    else:
+        # Initialize dut ourselves and therefore also close it afterwards
+        dut = Dut(iv_setup)
+        dut.init()
+        _close_dut = True
 
     # Get SMU from dut
     # By name
@@ -81,8 +87,8 @@ def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, b
         smu, = dut._hardware_layer.values()  # Fancy x, = container syntax
 
     else:
-        msg = "*smu_config* contains more than 1 hardware driver, cannot identify SMU."
-        msg += "Set *smu_name* or only have the SMU hardware driver in *smu_config*"
+        msg = "*iv_setup* contains more than 1 hardware driver, cannot identify SMU."
+        msg += "Set *smu_name* or only have the SMU hardware driver in *iv_setup*"
         raise ValueError(msg)
 
     # Generate array of bias voltages to loop over
@@ -181,7 +187,7 @@ def iv_scan(outfile, smu_config, bias_voltage, current_limit, bias_polarity=1, b
         # Ensure we go back to 0 volts with the same stepping as IV measurements
         smu_utils.ramp_voltage(smu=smu, target_voltage=0, steps=len(bias_volts))
 
-        if hasattr(smu, 'off'):
-            smu.off()
+        smu_utils.call_method_if_exists(smu, 'off')
 
-        dut.close()
+        if _close_dut:
+            dut.close()
