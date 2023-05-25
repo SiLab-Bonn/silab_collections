@@ -138,7 +138,7 @@ def setup_voltage_source(smu, bias_voltage, current_limit):
 
     # Check if smu is already on
     smu_is_on = call_method_if_exists(smu, 'get_on')
-    if smu_is_on is not None and bool(smu_is_on.strip()):
+    if smu_is_on is not None and bool(int(smu_is_on.strip())):
         # If smu is already on we want to ramp down to 0 volt
         ramp_voltage(smu, delay=0.2)
     # if we cannot tell, just ramp to 0 and turn on
