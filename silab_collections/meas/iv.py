@@ -179,10 +179,13 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
                             _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_linger, log=log_progress)
                         pbar_linger.close()
                     except KeyboardInterrupt:
-                        # Discard anyting on the transfer layer buffer
-                        smu._intf.read()
+                        pass
 
     finally:
+
+        # Discard anything on the transfer layer input buffer from potential remnants due to Exception
+        sleep(1)
+        smu._intf._port.reset_input_buffer()
 
         # Ensure we go back to 0 volts with the same stepping as IV measurements
         smu_utils.ramp_voltage(smu=smu, target_voltage=0, steps=len(bias_volts))

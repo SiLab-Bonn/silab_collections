@@ -167,6 +167,10 @@ def cv_scan(outfile, cv_setup, smu_name, lcr_name, ac_voltage, ac_frequency, bia
                     pbar_volts.write(log)
 
     finally:
+        
+        # Discard anything on the transfer layer input buffer from potential remnants due to Exception
+        sleep(1)
+        smu._intf._port.reset_input_buffer()
 
         lcr.ac_voltage = 'MIN'
 
