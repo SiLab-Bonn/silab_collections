@@ -52,7 +52,7 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
     bias_voltage : float, int
         Maximum voltage to which the bias voltage is ramped
     current_limit : float
-        Current limit in A
+        Absolute current limit in A
     bias_polarity : int, optional
         Bias voltage polarity, - 1 if *bias_polarity* < 0 else 1, by default 1
     bias_steps : int, optional
@@ -135,7 +135,7 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
                 current = smu_utils.get_current_reading(smu=smu)
 
                 # Check if we are above the current limit
-                if current  > current_limit and current < 1e37:
+                if abs(current) > abs(current_limit) and current < 1e37:
                     warnings.warn(f"Current limit exceeded with {current:.2E} A. Abort.", Warning)
                     break
                 

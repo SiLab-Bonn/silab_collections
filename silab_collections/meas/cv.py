@@ -33,7 +33,7 @@ def cv_scan(outfile, cv_setup, smu_name, lcr_name, ac_voltage, ac_frequency, bia
     bias_voltage : float, int, Iterable
         Voltage to which is ramped in V. Can also be an Iterable of voltages to use instead
     current_limit : float
-        Current limit in A
+        Absolute current limit in A
     lcr_func : str, optinal
         Measurement function of the LCR meter as defined in h2484a.MEAS_FUNCS, by default 'CPRP'
     bias_polarity : int, optional
@@ -123,7 +123,7 @@ def cv_scan(outfile, cv_setup, smu_name, lcr_name, ac_voltage, ac_frequency, bia
                 current = smu_utils.get_current_reading(smu=smu)
 
                 # Check if we are above the current limit
-                if current  > current_limit and current < 1e37:
+                if abs(current) > abs(current_limit) and current < 1e37:
                     warnings.warn(f"Current limit exceeded with {current:.2E} A. Abort.", Warning)
                     break
                 
