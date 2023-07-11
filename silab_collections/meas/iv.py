@@ -130,6 +130,9 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
                 
                 # Set next voltage
                 smu.set_voltage(bias)
+                
+                # Short sleep to prevent wrong read of compliance limit off of SMU
+                sleep(0.1)
     
                 # Read current 
                 current = smu_utils.get_current_reading(smu=smu)

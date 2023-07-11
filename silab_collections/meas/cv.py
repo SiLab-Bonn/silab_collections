@@ -118,6 +118,9 @@ def cv_scan(outfile, cv_setup, smu_name, lcr_name, ac_voltage, ac_frequency, bia
                 
                 # Set next voltage
                 smu.set_voltage(bias)
+
+                # Short sleep to prevent wrong read of compliance limit off of SMU
+                sleep(0.1)
     
                 # Read current 
                 current = smu_utils.get_current_reading(smu=smu)
@@ -167,7 +170,7 @@ def cv_scan(outfile, cv_setup, smu_name, lcr_name, ac_voltage, ac_frequency, bia
                     pbar_volts.write(log)
 
     finally:
-        
+
         # Discard anything on the transfer layer input buffer from potential remnants due to Exception
         sleep(1)
         smu._intf._port.reset_input_buffer()
