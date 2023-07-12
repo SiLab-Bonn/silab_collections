@@ -52,7 +52,7 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
     bias_voltage : float, int
         Maximum voltage to which the bias voltage is ramped
     current_limit : float
-        Current limit in A
+        Absolute current limit in A
     bias_polarity : int, optional
         Bias voltage polarity, - 1 if *bias_polarity* < 0 else 1, by default 1
     bias_steps : int, optional
@@ -130,12 +130,15 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
                 
                 # Set next voltage
                 smu.set_voltage(bias)
+                
+                # Short sleep to prevent wrong read of compliance limit off of SMU
+                sleep(0.1)
     
                 # Read current 
                 current = smu_utils.get_current_reading(smu=smu)
 
                 # Check if we are above the current limit
-                if current  > current_limit and current < 1e37:
+                if abs(current) > abs(current_limit) and current < 1e37:
                     warnings.warn(f"Current limit exceeded with {current:.2E} A. Abort.", Warning)
                     break
                 
@@ -179,10 +182,13 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
                             _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_linger, log=log_progress)
                         pbar_linger.close()
                     except KeyboardInterrupt:
-                        # Discard anyting on the transfer layer buffer
-                        smu._intf.read()
+                        pass
 
     finally:
+
+        # Discard anything on the transfer layer input buffer from potential remnants due to Exception
+        sleep(1)
+        smu._intf._port.reset_input_buffer()
 
         # Ensure we go back to 0 volts with the same stepping as IV measurements
         smu_utils.ramp_voltage(smu=smu, target_voltage=0, steps=len(bias_volts))
