@@ -12,7 +12,7 @@ from tqdm import tqdm
 from time import time, sleep, strftime
 
 
-def _measure_and_write_current(smu, n_meas, bias, writer, pbar, log):
+def _measure_and_write_current(smu, n_meas, bias, writer, pbar, log, temp_callback):
 
     # We only take one measurement
     if n_meas == 1:
@@ -27,8 +27,17 @@ def _measure_and_write_current(smu, n_meas, bias, writer, pbar, log):
             current[i] = smu_utils.get_current_reading(smu=smu)
             sleep(meas.MEAS_DELAY)
 
-        writer.write_row(timestamp=time(), bias=bias, mean_current=current.mean(), std_current=current.std())
+        results = dict(timestamp=time(), bias=bias, mean_current=current.mean(), std_current=current.std())
+        
+        if temp_callback is not None and callable(temp_callback):
+            results['temperature'] = float(temp_callback())
+
+        writer.write_row(**results)
+
         current_str = 'Current=({:.3E}{}{:.3E})A'.format(current.mean(), u'\u00B1', current.std())
+
+        if 'temperature' in results:
+            current_str += f" @ {results['temperature']:.1f} °C"
 
     # Update progressbars poststr
     pbar.set_postfix_str(current_str)
@@ -39,7 +48,7 @@ def _measure_and_write_current(smu, n_meas, bias, writer, pbar, log):
         pbar.write(log)
 
 
-def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bias_steps=None, n_meas=1, smu_name=None, log_progress=False, linger=False, **writer_kwargs):
+def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bias_steps=None, n_meas=1, smu_name=None, log_progress=False, linger=False, temp_callback=None, **writer_kwargs):
     """
     Basic IV scan using a single source-measure unit (SMU).
 
@@ -65,6 +74,8 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
         Whether to print the measurements of each voltage step persistently over the progressbar
     linger : bool, float, optional
         Whether to continue measuring IV when the *bias_voltage* has been reached. If True, measure until user interrupt, else measure *linger* seconds
+    temp_callback : callable, optional
+        A callable that returns the temperature in degree Celsius. If not None, an enntry for the temperature is made for each voltage step
     """
 
     # We already have an initialized DUT
@@ -105,6 +116,15 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
     
     # Don't allow the user to set the columns
     writer_kwargs['columns'] = ['timestamp', 'bias', 'current'] if n_meas == 1 else ['timestamp', 'bias', 'mean_current', 'std_current']
+
+    if temp_callback is not None and callable(temp_callback):
+        try:
+            test = float(temp_callback())
+            _ = f'{test:.1f}'
+            writer_kwargs['columns'].append('temperature')
+        except:
+            print("Temperature callback test failed!")
+            raise
     
     if 'outtype' in writer_kwargs and writer_kwargs['outtype'] == DataWriter.TABLES:
         writer_kwargs['columns'] = np.dtype(list(zip(writer_kwargs['columns'], [float] * len(writer_kwargs['columns']))))
@@ -145,7 +165,7 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
                 # Let the voltage settle
                 sleep(meas.BIAS_SETTLE_DELAY)
             
-                _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_volts, log=log_progress)
+                _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_volts, log=log_progress, temp_callback=temp_callback)
 
             # Loop did not break so there is no current exceeded
             else:
@@ -179,7 +199,7 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
                     # Start lingering
                     try:
                         for _ in pbar_linger:
-                            _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_linger, log=log_progress)
+                            _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_linger, log=log_progress, temp_callback=temp_callback)
                         pbar_linger.close()
                     except KeyboardInterrupt:
                         pass
