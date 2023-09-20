@@ -158,8 +158,8 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
                 current = smu_utils.get_current_reading(smu=smu)
 
                 # Check if we are above the current limit
-                if abs(current) > abs(current_limit) and current < 1e37:
-                    warnings.warn(f"Current limit exceeded with {current:.2E} A. Abort.", Warning)
+                if abs(current) >= abs(current_limit * 0.99) and current < 1e37:
+                    warnings.warn(f"Current limit reached with {current:.2E} A. Abort.", Warning)
                     break
                 
                 # Let the voltage settle
