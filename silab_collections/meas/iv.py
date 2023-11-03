@@ -127,12 +127,12 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
                     for key, val in test.items():
                         _ = f'{val:.1f}'            
                         writer_kwargs['columns'].append(f'temperature_{key}')
-                        temp_result_writer = lambda res: res.update(temp_callback())
+                    temp_result_writer = lambda res: res.update({f'temperature_{k}':v for k, v in temp_callback().items()})
                 else:
                     for i, val in enumerate(test):
                         _ = f'{val:.1f}'
                         writer_kwargs['columns'].append(f'temperature_{i}')
-                        temp_result_writer = lambda res: res.update({f'temperature_{j}': val for j, val in enumerate(temp_callback())})
+                    temp_result_writer = lambda res: res.update({f'temperature_{j}': val for j, val in enumerate(temp_callback())})
             else:
                 _ = f'{test:.1f}'
                 writer_kwargs['columns'].append('temperature')
