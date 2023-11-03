@@ -36,8 +36,9 @@ def _measure_and_write_current(smu, n_meas, bias, writer, pbar, log, temp_result
 
         current_str = 'Current=({:.3E}{}{:.3E})A'.format(current.mean(), u'\u00B1', current.std())
 
-        if 'temperature' in results:
-            current_str += f" @ {results['temperature']:.1f} °C"
+        temp_str = ' |'.join(f" {k.split('_')[-1].capitalize()}@{results[k]:.1f} °C" for k in results if 'temperature' in k)
+        if temp_str:
+            current_str += temp_str
 
     # Update progressbars poststr
     pbar.set_postfix_str(current_str)
