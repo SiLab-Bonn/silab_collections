@@ -12,7 +12,7 @@ from tqdm import tqdm
 from time import time, sleep, strftime
 
 
-def _measure_and_write_current(smu, n_meas, bias, writer, pbar, log, temp_callback):
+def _measure_and_write_current(smu, n_meas, bias, writer, pbar, log, temp_result_writer):
 
     # We only take one measurement
     if n_meas == 1:
@@ -29,8 +29,8 @@ def _measure_and_write_current(smu, n_meas, bias, writer, pbar, log, temp_callba
 
         results = dict(timestamp=time(), bias=bias, mean_current=current.mean(), std_current=current.std())
         
-        if temp_callback is not None and callable(temp_callback):
-            results['temperature'] = float(temp_callback())
+        if temp_result_writer is not None:
+            temp_result_writer(results)
 
         writer.write_row(**results)
 
@@ -117,11 +117,25 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
     # Don't allow the user to set the columns
     writer_kwargs['columns'] = ['timestamp', 'bias', 'current'] if n_meas == 1 else ['timestamp', 'bias', 'mean_current', 'std_current']
 
+    temp_result_writer = None
     if temp_callback is not None and callable(temp_callback):
         try:
-            test = float(temp_callback())
-            _ = f'{test:.1f}'
-            writer_kwargs['columns'].append('temperature')
+            test = temp_callback()
+            if isinstance(test, (list, tuple, dict)):
+                if isinstance(test, dict):
+                    for key, val in test.items():
+                        _ = f'{val:.1f}'            
+                        writer_kwargs['columns'].append(f'temperature_{key}')
+                        temp_result_writer = lambda res: res.update(temp_callback())
+                else:
+                    for i, val in enumerate(test):
+                        _ = f'{val:.1f}'
+                        writer_kwargs['columns'].append(f'temperature_{i}')
+                        temp_result_writer = lambda res: res.update({f'temperature_{j}': val for j, val in enumerate(temp_callback())})
+            else:
+                _ = f'{test:.1f}'
+                writer_kwargs['columns'].append('temperature')
+                temp_result_writer = lambda res: res.update({'temperature': temp_callback()})
         except:
             print("Temperature callback test failed!")
             raise
@@ -165,7 +179,7 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
                 # Let the voltage settle
                 sleep(meas.BIAS_SETTLE_DELAY)
             
-                _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_volts, log=log_progress, temp_callback=temp_callback)
+                _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_volts, log=log_progress, temp_result_writer=temp_result_writer)
 
             # Loop did not break so there is no current exceeded
             else:
@@ -199,7 +213,7 @@ def iv_scan(outfile, iv_setup, bias_voltage, current_limit, bias_polarity=1, bia
                     # Start lingering
                     try:
                         for _ in pbar_linger:
-                            _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_linger, log=log_progress, temp_callback=temp_callback)
+                            _measure_and_write_current(smu=smu, n_meas=n_meas,bias=bias, writer=writer, pbar=pbar_linger, log=log_progress, temp_result_writer=temp_result_writer)
                         pbar_linger.close()
                     except KeyboardInterrupt:
                         pass
